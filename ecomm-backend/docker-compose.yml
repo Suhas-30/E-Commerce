@@ -25,6 +25,16 @@ services:
     depends_on:
       - mongo
 
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "3003:3003"
+    depends_on:
+      - mongo
+      - auth-service
+      - product-service
+
   api-gateway:
     image: nginx
     container_name: api-gateway
@@ -35,6 +45,8 @@ services:
     depends_on:
       - auth-service
       - product-service
+
+  
 
 volumes:
   mongo-data:

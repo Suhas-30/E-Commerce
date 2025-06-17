@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -7,7 +8,8 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortOption, setSortOption] = useState('default');
   const [searchQuery, setSearchQuery] = useState('');
-
+  const [productId, setProductId] = useState('');
+  const navigate = useNavigate();
   const fetchProducts = async () => {
     try {
       const res = await axios.get('http://localhost/product/products');
@@ -35,11 +37,16 @@ const Products = () => {
     setSortOption(e.target.value);
   };
 
-  const handleAddToCart = (product) => {
-    alert(`✅ "${product.name}" added to cart successfully!`);
-  };
+ const handleAddToCart = (product) => {
+  const id = product._id;
+  setProductId(id); // This updates the state for later use
+  // console.log("Correct ID:", id); // ✅ This prints immediately and correctly
+  alert(`✅ "${id}" added to cart successfully!`);
+  navigate(`/cart/${id}`)
+};
 
-  // Apply category filter
+
+  // Apply zzcategory filter
   let filteredProducts =
     selectedCategory === 'All'
       ? products

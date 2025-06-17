@@ -27,7 +27,7 @@ const Login = () => {
       alert("Login successful!");
 
       // Redirect to homepage
-      navigate("/");
+      navigate("/products");
     } catch (err) {
       console.error("Login Failed:", err.response?.data || err.message);
       alert("Invalid email or password");

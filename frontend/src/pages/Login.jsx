@@ -23,11 +23,12 @@ const Login = () => {
     try {
       const res = await axios.post("http://localhost/auth/login", formData);
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       console.log("Login Success:", res.data);
       alert("Login successful!");
 
       // Redirect to homepage
-      navigate("/products");
+      navigate("/");
     } catch (err) {
       console.error("Login Failed:", err.response?.data || err.message);
       alert("Invalid email or password");

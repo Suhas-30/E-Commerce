@@ -98,6 +98,19 @@ app.post('/place', authenticate, async (req, res) => {
   }
 });
 
+app.get('/orders', authenticate, async (req, res) => {
+  try{
+    const userId = req.user.userId;
+    const orders = await Order.find({userId});
+    console.log(orders);
+    res.status(200).json({success: "true", orders});
+  }catch(err){
+    console.log("Error in finding orders", err);
+    res.status(500).json({success:"false", message:"Error in finding orders using the userId"});
+  }
+}
+)
+
 
 
 app.listen(3003, () => {

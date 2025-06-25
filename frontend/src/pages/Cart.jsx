@@ -1,33 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const CartPage = () => {
-  const { id } = useParams(); // productId from URL (if any)
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
-
-  // Add item to cart
-  const addCartItems = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        'http://localhost/order/cart',
-        { productId: id },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-    } catch (err) {
-      console.error('Error adding to cart:', err);
-      setErrorMsg('Failed to add to cart.');
-    }
-  };
 
   // Fetch cart for authenticated user
   const fetchCart = async () => {
@@ -55,14 +34,8 @@ const CartPage = () => {
   };
 
   useEffect(() => {
-    const handleCartUpdate = async () => {
-      if (id) {
-        await addCartItems(); // Only adds item if `id` param is present
-      }
-      await fetchCart();
-    };
-    handleCartUpdate();
-  }, [id]);
+    fetchCart();
+  }, []);
 
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,

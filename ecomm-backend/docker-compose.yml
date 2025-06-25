@@ -1,6 +1,12 @@
 version: '3.8'
 
 services:
+
+  ml-service:
+    build: ./ml-service
+    ports:
+      - "8000:8000"
+
   mongo:
     image: mongo
     container_name: mongo

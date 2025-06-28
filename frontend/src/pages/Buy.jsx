@@ -2,7 +2,8 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import base_api_url from "../baseapi/baseAPI";
-import { generateDeviceFingerprint } from "../components/fingerPrint";  
+import { generateDeviceFingerprint } from "../components/fingerPrint";
+
 const Buy = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -11,7 +12,6 @@ const Buy = () => {
   const placeOrder = async () => {
     try {
       const token = localStorage.getItem("token");
-
       const response = await axios.post(
         `${base_api_url}/order/place`,
         {
@@ -37,33 +37,45 @@ const Buy = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-4">Order Summary</h1>
+    <div className="max-w-lg mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+        🧾 Order Summary
+      </h1>
 
       {items.length === 0 ? (
-        <p className="text-gray-600">No items in the order.</p>
+        <p className="text-center text-gray-500">No items in the order.</p>
       ) : (
         <>
-          <ul className="space-y-4 mb-4">
+          <ul className="space-y-4 mb-6">
             {items.map((item, index) => (
-              <li key={index} className="p-4 border rounded shadow-sm">
-                <p className="font-medium">{item.productname}</p>
-                <p className="text-sm text-gray-600">
-                  Quantity: {item.quantity}
-                </p>
+              <li
+                key={index}
+                className="border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition"
+              >
+                <div className="flex justify-between items-center">
+                  <p className="font-semibold text-gray-800">{item.productname}</p>
+                  <span className="text-sm text-gray-600">
+                    Qty: {item.quantity}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
 
-          <div className="text-xl font-semibold mb-4">
-            Total Amount: ₹{totalAmount}
+          <div className="mb-6 text-right">
+            <p className="text-lg text-gray-700 font-medium">
+              Total:
+              <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-bold">
+                ₹{totalAmount.toLocaleString()}
+              </span>
+            </p>
           </div>
 
           <button
             onClick={placeOrder}
-            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
           >
-            Confirm & Place Order
+            ✅ Confirm & Place Order
           </button>
         </>
       )}

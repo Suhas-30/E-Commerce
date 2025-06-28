@@ -40,8 +40,7 @@ E-Commerce/
 ├── ml-service/          → BERT-based NoSQL injection detection service  
 ├── ml-filter-gateway/   → Middleware proxy for filtering malicious requests  
 ├── nginx/               → API Gateway (NGINX)  
-└── docker-compose.yml   → Docker orchestration  
-
+└── docker-compose.yml   → Docker orchestration 
 
 ## 👥 Contributors
 

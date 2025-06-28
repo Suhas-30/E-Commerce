@@ -32,13 +32,16 @@ This will spin up all the backend microservices defined in docker-compose.yml.
 
 ## 📁 Project Structure (Simplified)
 
-E-Commerce/  
+E-Commerce/
 ├── frontend/            → React frontend  
 ├── auth-service/        → Authentication microservice  
 ├── product-service/     → Product management microservice  
 ├── order-service/       → Order processing microservice  
+├── ml-service/          → BERT-based NoSQL injection detection service  
+├── ml-filter-gateway/   → Middleware proxy for filtering malicious requests  
 ├── nginx/               → API Gateway (NGINX)  
-└── docker-compose.yml   → Docker orchestration
+└── docker-compose.yml   → Docker orchestration  
+
 
 ## 👥 Contributors
 

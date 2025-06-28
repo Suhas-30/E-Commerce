@@ -33,14 +33,15 @@ This will spin up all the backend microservices defined in docker-compose.yml.
 ## 📁 Project Structure (Simplified)
 
 E-Commerce/
-├── frontend/            → React frontend  
-├── auth-service/        → Authentication microservice  
-├── product-service/     → Product management microservice  
-├── order-service/       → Order processing microservice  
-├── ml-service/          → BERT-based NoSQL injection detection service  
-├── ml-filter-gateway/   → Middleware proxy for filtering malicious requests  
-├── nginx/               → API Gateway (NGINX)  
-└── docker-compose.yml   → Docker orchestration 
+├── frontend/             → ⚛️ React frontend
+├── auth-service/         → 🔐 Authentication microservice (Login/Register, JWT)
+├── product-service/      → 📦 Product management microservice
+├── order-service/        → 🛒 Order processing microservice (Cart, Checkout)
+├── ml-service/           → 🤖 BERT-based NoSQL Injection Detection (FastAPI)
+├── ml-filter-gateway/    → 🧱 Middleware proxy to block malicious payloads
+├── nginx/                → 🌐 API Gateway using NGINX (Routes internal services)
+└── docker-compose.yml    → 🐳 Docker orchestration for all microservices
+ 
 
 ## 👥 Contributors
 

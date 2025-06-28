@@ -11,6 +11,16 @@ services:
     networks:
       - mern-net
 
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mern-net
+
   auth-service:
     build: ./auth-service
     container_name: auth-service
@@ -18,6 +28,7 @@ services:
       - "3001:3001"
     depends_on:
       - mongo
+      - redis
     networks:
       - mern-net
     volumes:
@@ -42,6 +53,7 @@ services:
       - mongo
       - auth-service
       - product-service
+      - redis
     networks:
       - mern-net
     volumes:
@@ -82,6 +94,7 @@ services:
 
 volumes:
   mongo-data:
+  redis-data:
 
 networks:
   mern-net:

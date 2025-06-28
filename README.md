@@ -4,26 +4,32 @@ This project is an online shopping platform built using a **microservice archite
 
 ## 📦 Clone the Repository
 
+```bash
 git clone https://github.com/Suhas-30/E-Commerce.git  
 cd E-Commerce
+```
 
 ## 💻 Running the Frontend
 
 Navigate to the frontend directory, install dependencies, and start the development server:
 
+```bash
 cd frontend  
 npm install  
 npm run dev
+```
 
-The frontend will start on http://localhost:5173 (default Vite port).
+The frontend will start on [http://localhost:5173](http://localhost:5173) (default Vite port).
 
 ## ⚙️ Running Backend Services
 
 Make sure Docker is installed and running. Then, from the project root, run:
 
+```bash
 docker-compose up --build
+```
 
-This will spin up all the backend microservices defined in docker-compose.yml.
+This will spin up all the backend microservices defined in `docker-compose.yml`.
 
 ## 🧰 Requirements
 
@@ -32,6 +38,7 @@ This will spin up all the backend microservices defined in docker-compose.yml.
 
 ## 📁 Project Structure (Simplified)
 
+```plaintext
 E-Commerce/
 ├── frontend/             → ⚛️ React frontend
 ├── auth-service/         → 🔐 Authentication microservice (Login/Register, JWT)
@@ -41,7 +48,7 @@ E-Commerce/
 ├── ml-filter-gateway/    → 🧱 Middleware proxy to block malicious payloads
 ├── nginx/                → 🌐 API Gateway using NGINX (Routes internal services)
 └── docker-compose.yml    → 🐳 Docker orchestration for all microservices
- 
+```
 
 ## 👥 Contributors
 
@@ -53,4 +60,4 @@ E-Commerce/
 ## 📬 Contact
 
 Feel free to open issues or pull requests.  
-GitHub: https://github.com/Suhas-30
+GitHub: [https://github.com/Suhas-30](https://github.com/Suhas-30)

@@ -2,12 +2,27 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import base_api_url from "../baseapi/baseAPI";
+import { generateDeviceFingerprint } from "../components/fingerPrint";
+import { useEffect } from "react";
+
 
 const Login = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    deviceFingerprint: ""
   });
+
+  useEffect(() => {
+  const init = async () => {
+    const fingerprint = await generateDeviceFingerprint();
+    setFormData((prev) => ({
+      ...prev,
+      deviceFingerprint: fingerprint,
+    }));
+  };
+  init();
+}, []); 
 
   const navigate = useNavigate();
 

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import Profile from './Profile'; // 🔗 Import the profile dropdown component
-import base_api_url from '../baseapi/baseAPI'; // 🔗 Import base API URL
+import Profile from './Profile';
+import base_api_url from '../baseapi/baseAPI';
+import { generateDeviceFingerprint } from "../components/fingerPrint";
+
 const Home = () => {
   const [products, setProducts] = useState([]);
   const navigate = useNavigate();
-  //http://localhost/product/products
+
   const fetchProducts = async () => {
     try {
       const res = await axios.get(`${base_api_url}/product/products`);
@@ -17,17 +19,23 @@ const Home = () => {
   };
 
   useEffect(() => {
-    fetchProducts();
+    const init = async () => {
+      fetchProducts();
+      await generateDeviceFingerprint();
+    };
+    init();
   }, []);
 
   const isLoggedIn = !!localStorage.getItem("token");
-  //http://localhost/order/cart
+
   const handleAddToCart = async (product) => {
     if (isLoggedIn) {
       try {
         await axios.post(
           `${base_api_url}/order/cart`,
-          { productId: product._id },
+          { productId: product._id,
+            deviceFingerprint: await generateDeviceFingerprint()  // Ensure fingerprint is generated
+           },
           {
             headers: {
               'Content-Type': 'application/json',
@@ -51,7 +59,7 @@ const Home = () => {
         <h1 className="text-2xl font-bold text-blue-600">Ecomm</h1>
         <div className="space-x-3 flex items-center">
           {isLoggedIn ? (
-            <Profile /> // ✅ Show profile dropdown
+            <Profile />
           ) : (
             <>
               <Link
@@ -71,7 +79,6 @@ const Home = () => {
         </div>
       </header>
 
-      {/* Product Section */}
       <section className="max-w-7xl mx-auto">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Products</h2>
         {products.length === 0 ? (

@@ -1,7 +1,6 @@
-// middleware/authMiddleware.js
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'vulnerable-secret'; // Same as in auth-service
+const JWT_SECRET = 'vulnerable-secret'; 
 
 const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -16,7 +15,7 @@ const authenticate = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
 
-    // ✅ Log successful verification
+    
     console.log(`✅ JWT verified for user: ${decoded.userId} (${decoded.email})`);
 
     next();

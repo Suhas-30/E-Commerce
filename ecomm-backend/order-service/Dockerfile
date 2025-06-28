@@ -2,11 +2,14 @@ FROM node:18
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
-
 COPY . .
+
+COPY shared-utils ./shared-utils
+
+RUN npm install
 
 EXPOSE 3003
 
 CMD ["node", "server.js"]
+
+

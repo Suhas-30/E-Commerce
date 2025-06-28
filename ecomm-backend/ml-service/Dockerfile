@@ -1,24 +1,24 @@
-# Use Python 3.10 base image
-FROM python:3.10
+FROM python:3.10-slim
 
-# Set working directory inside the container
+# === System dependencies ===
+RUN apt-get update && \
+    apt-get install -y curl unzip git && \
+    rm -rf /var/lib/apt/lists/*
+
+# === Set working directory ===
 WORKDIR /app
 
-# Copy local PyTorch wheel into the image
-COPY wheels/ /wheels/
-
-# Install torch from the local wheel (offline install)
-RUN pip install /wheels/torch-2.1.0+cpu-cp310-cp310-linux_x86_64.whl
-
-# Copy requirements and install remaining dependencies
-COPY requirements.txt .
-RUN pip install --default-timeout=300 --no-cache-dir -r requirements.txt
-
-# Copy the rest of the FastAPI application
+# === Copy all source code ===
 COPY . .
 
-# Expose the port for Uvicorn
-EXPOSE 8000
+# === Install Python dependencies ===
+# (Install torch separately with CPU-only wheel)
+RUN pip install --no-cache-dir torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Start FastAPI with Uvicorn
+
+# === Download and extract BERT model from Google Drive ===
+RUN python download_model.py
+
+# === Run FastAPI app on port 8000 ===
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

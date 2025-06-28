@@ -2,7 +2,7 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import base_api_url from "../baseapi/baseAPI";
-
+import { generateDeviceFingerprint } from "../components/fingerPrint";  
 const Buy = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -11,11 +11,13 @@ const Buy = () => {
   const placeOrder = async () => {
     try {
       const token = localStorage.getItem("token");
+
       const response = await axios.post(
         `${base_api_url}/order/place`,
         {
           items,
           totalAmount,
+          deviceFingerprint: await generateDeviceFingerprint(),
         },
         {
           headers: {

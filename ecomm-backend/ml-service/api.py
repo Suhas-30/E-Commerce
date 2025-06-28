@@ -1,64 +1,49 @@
+from fastapi import FastAPI, Request
 import torch
-import torch.nn as nn
-import pickle
-import re
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-MAX_LEN = 100
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-with open("vocab.pkl", "rb") as f:
-    vocab = pickle.load(f)
-
-def simple_tokenizer(text):
-    text = text.lower()
-    return re.findall(r"\b\w+\b", text)[:MAX_LEN]
-
-def encode(text):
-    tokens = simple_tokenizer(text)
-    ids = [vocab.get(t, 1) for t in tokens]  # 1 = <UNK>
-    ids += [0] * (MAX_LEN - len(ids))        # pad with 0
-    return torch.tensor(ids[:MAX_LEN], dtype=torch.long).unsqueeze(0)
-
-class TransformerClassifier(nn.Module):
-    def __init__(self, vocab_size, embed_dim=128, num_heads=4, num_layers=2, num_classes=2):
-        super().__init__()
-        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
-        encoder_layer = nn.TransformerEncoderLayer(embed_dim, num_heads, batch_first=True)
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers)
-        self.fc = nn.Linear(embed_dim, num_classes)
-
-    def forward(self, x):
-        embedded = self.embedding(x)
-        transformer_out = self.transformer(embedded)
-        return self.fc(transformer_out.mean(dim=1))
-
-model = TransformerClassifier(vocab_size=len(vocab)).to(DEVICE)
-model.load_state_dict(torch.load("transformer_nosql_model.pth", map_location=DEVICE))
-model.eval()
+from transformers import BertTokenizer, BertForSequenceClassification
+import json
 
 app = FastAPI()
 
-class QueryInput(BaseModel):
-    payload: dict
+MODEL_PATH = "./bert_nosql_model"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import datetime
+tokenizer = BertTokenizer.from_pretrained(MODEL_PATH, local_files_only=True)
+model = BertForSequenceClassification.from_pretrained(MODEL_PATH, local_files_only=True)
+model.to(DEVICE)
+model.eval()
+
+def predict(text: str):
+    encoding = tokenizer.encode_plus(
+        text,
+        add_special_tokens=True,
+        max_length=128,
+        return_token_type_ids=False,
+        padding='max_length',
+        truncation=True,
+        return_attention_mask=True,
+        return_tensors='pt'
+    )
+    input_ids = encoding["input_ids"].to(DEVICE)
+    attention_mask = encoding["attention_mask"].to(DEVICE)
+
+    with torch.no_grad():
+        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+        logits = outputs.logits
+        probs = torch.softmax(logits, dim=1)
+        predicted_class = torch.argmax(probs, dim=1).item()
+        confidence = probs[0][predicted_class].item()
+
+    label = "malicious" if predicted_class == 1 else "benign"
+    return {"label": label, "confidence": round(confidence, 4)}
 
 @app.post("/predict")
-async def predict(input_data: QueryInput):
-    flat_text = " ".join(str(v) for v in input_data.payload.values())
-    encoded = encode(flat_text).to(DEVICE)
-    
-    with torch.no_grad():
-        pred = torch.argmax(model(encoded), dim=1).item()
-    
-    result = "malicious" if pred == 1 else "benign"
-
-    # 📝 Log to console (stdout)
-    print(f"[{datetime.datetime.now()}] Prediction: {result.upper()} | Payload: {input_data.payload}")
-
-    return {"prediction": result}
-
-
-
+async def classify(request: Request):
+    body = await request.json()
+    try:
+        # ✅ Convert incoming raw JSON into a string
+        raw_text = json.dumps(body)
+        print("📝 Received:", raw_text)
+        return predict(raw_text)
+    except Exception as e:
+        return {"error": f"Invalid input: {e}"}

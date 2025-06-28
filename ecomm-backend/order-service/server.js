@@ -4,7 +4,12 @@ import Cart from './models/Cart.js';
 import Order from './models/Order.js';
 import axios from 'axios';
 
-import authenticate from './middleware/authMiddleware.js'; // 👈 Import middleware
+import authenticate from './middleware/authMiddleware.js';
+import checkFingerprint from './shared-utils/checkFingerprint.js';
+
+ // Import the fingerprint check middleware
+ 
+
 
 const app = express();
 app.use(express.json());
@@ -15,7 +20,7 @@ mongoose.connect('mongodb://mongo:27017/orderdb', {
 }).then(() => console.log("MongoDB connected (orderdb)"))
   .catch(err => console.error(err));
 
-// 🛒 View cart by userId (🔐 protected)
+
 app.get('/cart', authenticate, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -32,27 +37,24 @@ app.get('/cart', authenticate, async (req, res) => {
   }
 });
 
-// 🛒 Add to cart (🔐 protected)
-app.post('/cart', authenticate, async (req, res) => {
+app.post('/cart', authenticate,  checkFingerprint, async (req, res) => {
   try {
     const { productId, quantity = 1 } = req.body;
     const userId = req.user.userId;
 
-    // Fetch product details from product-service
     const productRes = await axios.get(`http://product-service:3002/products/${productId}`);
     const { name, price } = productRes.data;
 
-    // Check if the cart exists
     let cart = await Cart.findOne({ userId });
 
     if (!cart) {
-      // Create new cart with item
+ 
       cart = new Cart({
         userId,
         items: [{ productId, productname: name, quantity, price }]
       });
     } else {
-      // Check if product already in cart
+
       const existingItem = cart.items.find(item => item.productId === productId);
 
       if (existingItem) {
@@ -74,7 +76,7 @@ app.post('/cart', authenticate, async (req, res) => {
 
 // ✅ Place Order (🔐 protected)
 // ⛳ POST /order/place - Place Order
-app.post('/place', authenticate, async (req, res) => {
+app.post('/place', authenticate, checkFingerprint, async (req, res) => {
   try {
     const userId = req.user.userId;
     const { items, totalAmount } = req.body;

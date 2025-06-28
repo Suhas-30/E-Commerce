@@ -6,6 +6,7 @@ WORKDIR /app
 
 # Copy only package files first to leverage Docker cache
 COPY package*.json ./
+COPY shared-utils ./shared-utils
 
 # Install dependencies inside the container
 RUN npm install

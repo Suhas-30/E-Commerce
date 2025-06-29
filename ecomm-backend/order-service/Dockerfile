@@ -4,8 +4,6 @@ WORKDIR /app
 
 COPY . .
 
-COPY shared-utils ./shared-utils
-
 RUN npm install
 
 EXPOSE 3003

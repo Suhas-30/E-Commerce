@@ -43,7 +43,15 @@ async def classify(request: Request):
     try:
         # ✅ Convert incoming raw JSON into a string
         raw_text = json.dumps(body)
-        print("📝 Received:", raw_text)
-        return predict(raw_text)
+        print("📝 Received Payload:", raw_text)
+        
+        result = predict(raw_text)
+
+        # 🛡️ Log result
+        print(f"🔍 Prediction => Label: {result['label']} | Confidence: {result['confidence']}")
+
+        return result
     except Exception as e:
+        print(f"❌ Error processing input: {e}")
         return {"error": f"Invalid input: {e}"}
+

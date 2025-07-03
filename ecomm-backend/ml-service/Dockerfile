@@ -13,7 +13,7 @@ COPY . .
 
 # === Install Python dependencies ===
 # (Install torch separately with CPU-only wheel)
-RUN pip install --no-cache-dir torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir torch==2.1.0 --timeout 300 --retries 10 --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 

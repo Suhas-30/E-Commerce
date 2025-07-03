@@ -1,15 +1,15 @@
 const express = require("express");
 const axios = require("axios");
+const cors = require("cors");
+
 const app = express();
 const port = 3100;
-const cors = require("cors");
 
 app.use(cors());
 app.use(express.json());
 
 app.use(async (req, res) => {
   try {
-    // ✅ Only inspect POST requests with JSON body
     const isJson = req.headers["content-type"]?.includes("application/json");
     const isPost = req.method === "POST";
 
@@ -19,6 +19,7 @@ app.use(async (req, res) => {
       });
 
       const prediction = mlResponse.data.prediction;
+      console.log("🧠 ML Prediction:", prediction);
 
       if (prediction === "malicious") {
         return res
@@ -27,7 +28,7 @@ app.use(async (req, res) => {
       }
     }
 
-    // ✅ Forward to actual API Gateway
+    // Forward request to actual API Gateway
     const gatewayUrl = `http://api-gateway${req.originalUrl}`;
 
     const forwarded = await axios({
@@ -38,18 +39,19 @@ app.use(async (req, res) => {
         host: "api-gateway",
       },
       data: req.body,
+      validateStatus: (status) => status >= 200 && status < 400, // ✅ Accept 304 as valid
     });
 
     res.status(forwarded.status).json(forwarded.data);
   } catch (err) {
+    // ✅ Only log real errors
+    if (err.response?.status === 304) {
+      return res.status(304).end();
+    }
+
     console.error("Error in forwarding:", err.message);
 
     if (err.response) {
-      // ✅ Handle 304 (Not Modified) gracefully
-      if (err.response.status === 304) {
-        return res.status(304).end(); // No body, just end the response
-      }
-
       return res
         .status(err.response.status)
         .json(err.response.data || { error: "Request failed" });

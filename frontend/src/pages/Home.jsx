@@ -4,7 +4,8 @@ import axios from "axios";
 import Profile from "./Profile";
 import base_api_url from "../baseapi/baseAPI";
 import { generateDeviceFingerprint } from "../components/fingerPrint";
-import { Search } from "lucide-react"; // Optional icon
+import { getPublicIP } from "../components/getPublicIP";
+import { Search } from "lucide-react";
 import axiosConfig from "../components/axiosConfig";
 
 const Home = () => {
@@ -29,12 +30,19 @@ const Home = () => {
     }
 
     try {
-      const fingerprint = await generateDeviceFingerprint();
+      const [fingerprint, publicIP] = await Promise.all([
+        generateDeviceFingerprint(),
+        getPublicIP()
+      ]);
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       await axiosConfig.post(
         `/order/cart`,
         {
           productId: product._id,
           deviceFingerprint: fingerprint,
+          publicIP,
+          timezone
         },
         {
           headers: {
@@ -43,19 +51,15 @@ const Home = () => {
           },
         }
       );
+
       alert(`✅ ${product.name} added to cart!`);
     } catch (error) {
       console.error("❌ Failed to add product to cart:", error);
-      // alert('⚠️ Something went wrong. Please try again.');
     }
   };
 
   useEffect(() => {
-    const init = async () => {
-      await fetchProducts();
-      await generateDeviceFingerprint();
-    };
-    init();
+    fetchProducts();
   }, []);
 
   const filteredProducts = products.filter(
@@ -66,7 +70,6 @@ const Home = () => {
 
   return (
     <div className="bg-white min-h-screen px-4 py-6">
-      {/* Header */}
       <header className="flex justify-between items-center max-w-7xl mx-auto mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
           🛒 Ecomm
@@ -93,7 +96,6 @@ const Home = () => {
         </div>
       </header>
 
-      {/* Search Bar */}
       <div className="max-w-2xl mx-auto mb-10">
         <div className="relative">
           <input
@@ -107,16 +109,13 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Product Grid */}
       <section className="max-w-7xl mx-auto">
         <h2 className="text-2xl font-semibold mb-6 text-gray-800 text-center">
           🌟 Explore Our Latest Products
         </h2>
 
         {filteredProducts.length === 0 ? (
-          <p className="text-center text-gray-500">
-            No products found for your search.
-          </p>
+          <p className="text-center text-gray-500">No products found for your search.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 px-2 sm:px-0">
             {filteredProducts.map((product) => (
@@ -130,7 +129,6 @@ const Home = () => {
                   className="w-full h-48 object-cover"
                   referrerPolicy="no-referrer"
                 />
-
                 <div className="p-4 flex-1 flex flex-col">
                   <h3 className="text-lg font-bold text-gray-900 mb-1 truncate">
                     {product.name}
@@ -138,7 +136,6 @@ const Home = () => {
                   <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                     {product.description}
                   </p>
-
                   <div className="mt-auto flex justify-between items-center">
                     <span className="text-blue-600 font-bold text-base">
                       ₹{product.price}

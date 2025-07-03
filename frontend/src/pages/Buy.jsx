@@ -1,23 +1,44 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import base_api_url from "../baseapi/baseAPI";
 import { generateDeviceFingerprint } from "../components/fingerPrint";
+import { getPublicIP } from "../components/getPublicIP";
 
 const Buy = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { items = [], totalAmount = 0 } = location.state || {};
 
+  const [deviceFingerprint, setDeviceFingerprint] = useState("");
+  const [publicIP, setPublicIP] = useState("");
+  const [timezone, setTimezone] = useState("");
+
+  useEffect(() => {
+    const init = async () => {
+      const fingerprint = await generateDeviceFingerprint();
+      const ip = await getPublicIP();
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      setDeviceFingerprint(fingerprint);
+      setPublicIP(ip);
+      setTimezone(tz);
+    };
+    init();
+  }, []);
+
   const placeOrder = async () => {
     try {
       const token = localStorage.getItem("token");
+
       const response = await axios.post(
         `${base_api_url}/order/place`,
         {
           items,
           totalAmount,
-          deviceFingerprint: await generateDeviceFingerprint(),
+          deviceFingerprint,
+          publicIP,
+          timezone,
         },
         {
           headers: {
@@ -31,7 +52,7 @@ const Buy = () => {
       console.log("Order response:", response.data);
       navigate("/");
     } catch (err) {
-      console.error("❌ Error placing order:", err);
+      console.error("❌ Error placing order:", err.response?.data || err.message);
       alert("Failed to place order.");
     }
   };

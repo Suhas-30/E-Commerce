@@ -2,29 +2,33 @@ import express from "express";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import User from "./models/User.js";
-import { storeDeviceFingerprintInfo } from "./shared-utils/redisService.js";
+import {
+  storeDeviceFingerprintInfo,
+  storeUserContext,
+} from "./shared-utils/redisService.js";
+import { getIPMetadata } from "./shared-utils/ipUtils.js";
 
 const app = express();
 app.use(express.json());
+app.set("trust proxy", true);
 
 mongoose
   .connect("mongodb://mongo:27017/authDB", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log(err));
+  .then(() => console.log("MongoDB connected (authDB)"))
+  .catch((err) => console.error(err));
 
 const JWT_SECRET = "vulnerable-secret";
 
 app.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+
+    if (existingUser)
       return res.status(400).json({ error: "Email already registered" });
-    }
 
     const user = new User({ name, email, password });
     await user.save();
@@ -38,32 +42,69 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   try {
-    const { email, password, deviceFingerprint } = req.body;
-    console.log(`Hash received: ${deviceFingerprint}`);
-    console.log("Login attempt:", { email, password });
+    const {
+      email,
+      password,
+      deviceFingerprint,
+      publicIP: clientReportedIP,
+      timezone,
+    } = req.body;
 
     const user = await User.findOne({ email, password });
-    console.log("User found:", user);
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+    const token = jwt.sign({ userId: user._id, email }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const proxyIP = forwardedFor?.split(",")[0]?.trim() || null;
+    const privateIP = req.socket.remoteAddress;
 
-    const deviceFingerprintInfo = {
-      userId: user._id,
-      token,
-      deviceFingerprint,
+    console.log("🧾 Public IP from client:", clientReportedIP);
+    console.log("🧾 IP from proxy headers:", proxyIP);
+
+    const isPrivate = (ip) => {
+      if (!ip) return true;
+      if (ip === "127.0.0.1") return true;
+      if (ip.startsWith("172.19.") || ip.startsWith("172.18.")) return false; // Accept WSL Docker dev
+      return /^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
     };
 
-    console.log("Device fingerprint info:", deviceFingerprintInfo);
+    if (!clientReportedIP || isPrivate(proxyIP)) {
+      console.warn("⚠️ Invalid or private IP detected:", proxyIP);
+      return res.status(400).json({ message: "Public IP missing or invalid." });
+    }
 
-    await storeDeviceFingerprintInfo(deviceFingerprintInfo);
+    const userAgent = req.headers["user-agent"] || "";
+    const origin = req.headers["origin"] || req.headers["referer"] || "";
+    const ipMetaData = await getIPMetadata(clientReportedIP);
+
+    const sessionContext = {
+      userId: user._id.toString(),
+      deviceFingerprint,
+      privateIP,
+      publicIP: clientReportedIP,
+      timezone,
+      ip_meta: ipMetaData,
+      userAgent,
+      origin,
+      ip_history: [
+        {
+          ip: clientReportedIP,
+          meta: ipMetaData,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    await storeUserContext(user._id.toString(), sessionContext);
+
+    await storeDeviceFingerprintInfo({
+      userId: user._id.toString(),
+      token,
+      deviceFingerprint,
+    });
 
     res.json({
       message: "Login successful",
@@ -76,6 +117,8 @@ app.post("/login", async (req, res) => {
   }
 });
 
+
+
 app.listen(3001, () => {
-  console.log("Auth service running on port 3001");
+  console.log("🔐 Auth service running on port 3001");
 });

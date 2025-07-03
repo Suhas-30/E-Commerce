@@ -1,3 +1,4 @@
+# ml-service/main.py
 from fastapi import FastAPI, Request
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
@@ -35,23 +36,18 @@ def predict(text: str):
         confidence = probs[0][predicted_class].item()
 
     label = "malicious" if predicted_class == 1 else "benign"
-    return {"label": label, "confidence": round(confidence, 4)}
+    return {"prediction": label, "confidence": round(confidence, 4)}
 
 @app.post("/predict")
 async def classify(request: Request):
-    body = await request.json()
     try:
-        # ✅ Convert incoming raw JSON into a string
+        body = await request.json()
         raw_text = json.dumps(body)
         print("📝 Received Payload:", raw_text)
-        
+
         result = predict(raw_text)
-
-        # 🛡️ Log result
-        print(f"🔍 Prediction => Label: {result['label']} | Confidence: {result['confidence']}")
-
+        print(f"🔍 Prediction => Label: {result['prediction']} | Confidence: {result['confidence']}")
         return result
     except Exception as e:
         print(f"❌ Error processing input: {e}")
         return {"error": f"Invalid input: {e}"}
-

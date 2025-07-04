@@ -2,6 +2,12 @@ import express from "express";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import User from "./models/User.js";
+import path from "path";
+import fs from 'fs';
+
+const logFile = path.join(process.cwd(), 'logs', 'latency-metrics.csv');
+
+
 import {
   storeDeviceFingerprintInfo,
   storeUserContext,
@@ -50,12 +56,16 @@ app.post("/login", async (req, res) => {
       timezone,
     } = req.body;
 
+    const jwtStart = Date.now();
+
     const user = await User.findOne({ email, password });
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
     const token = jwt.sign({ userId: user._id, email }, JWT_SECRET, {
       expiresIn: "1h",
     });
+
+    const jwtSignTime = Date.now()-jwtStart;
 
     const forwardedFor = req.headers["x-forwarded-for"];
     const proxyIP = forwardedFor?.split(",")[0]?.trim() || null;
@@ -79,6 +89,8 @@ app.post("/login", async (req, res) => {
     const userAgent = req.headers["user-agent"] || "";
     const origin = req.headers["origin"] || req.headers["referer"] || "";
     const ipMetaData = await getIPMetadata(clientReportedIP);
+
+    const contextStart = Date.now();
 
     const sessionContext = {
       userId: user._id.toString(),
@@ -105,6 +117,12 @@ app.post("/login", async (req, res) => {
       token,
       deviceFingerprint,
     });
+
+    const contextStoreTime = Date.now()-contextStart;
+
+    fs.appendFileSync(logFile, `${Date.now()}, ${jwtSignTime}, ${contextStoreTime},,\n`,
+      'utf-8'
+    )
 
     res.json({
       message: "Login successful",

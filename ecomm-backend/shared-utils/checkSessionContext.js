@@ -1,8 +1,14 @@
 import { getUserContext, getDeviceFingerprintInfo } from "./redisService.js";
 import { getIPMetadata } from "./ipUtils.js";
+import path from  "path";
+import fs from "fs";
+
+const logFile = path.join(process.cwd(), 'logs', 'latency-metrics.csv');
 
 export default async function checkSessionContext(req, res, next) {
   console.log("🛡️ [Middleware] Entered checkSessionContext");
+
+  const startTime = Date.now();
 
   try {
     const authHeader = req.headers.authorization;
@@ -110,6 +116,14 @@ export default async function checkSessionContext(req, res, next) {
     if (context.userAgent && context.userAgent !== userAgent) {
       console.warn("⚠️ User-Agent mismatch:", context.userAgent, userAgent);
     }
+
+    const contextVerifyTime = Date.now() - startTime;
+
+    fs.appendFileSync(
+      logFile,
+      `${Date.now()},,,,${contextVerifyTime}\n`, // Only fills contextVerify column
+      'utf-8'
+    );
 
     next();
   } catch (err) {

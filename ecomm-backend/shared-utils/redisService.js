@@ -60,7 +60,7 @@ export async function getUserContext(userId) {
 
     if (parsed) {
       console.log(`📦 [Redis] Session context loaded for user ${userId}`);
-      console.log(`   ├─ Stored IP: ${parsed.ip_init}`);
+      console.log(`   ├─ Stored IP: ${parsed.publicIP}`);
       console.log(`   ├─ Country: ${parsed.ip_meta?.country}`);
       console.log(`   ├─ ASN: ${parsed.ip_meta?.asn}`);
       console.log(`   └─ Fingerprint: ${parsed.deviceFingerprint}`);

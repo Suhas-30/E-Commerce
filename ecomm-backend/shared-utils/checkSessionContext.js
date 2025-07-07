@@ -1,14 +1,9 @@
 import { getUserContext, getDeviceFingerprintInfo } from "./redisService.js";
 import { getIPMetadata } from "./ipUtils.js";
-import path from  "path";
-import fs from "fs";
-
-const logFile = path.join(process.cwd(), 'logs', 'latency-metrics.csv');
+import { fetchCVE } from "./fetchCVE.js"; 
 
 export default async function checkSessionContext(req, res, next) {
   console.log("🛡️ [Middleware] Entered checkSessionContext");
-
-  const startTime = Date.now();
 
   try {
     const authHeader = req.headers.authorization;
@@ -78,16 +73,39 @@ export default async function checkSessionContext(req, res, next) {
 
     // ✅ Enforce country match
     if (storedMeta.country !== currentMeta.country) {
-      console.warn("❌ Country mismatch");
-      return res.status(403).json({ message: "Country mismatch" });
+      console.warn("❌ Country Mismatch");
+  const cves = await fetchCVE("ip geolocation spoofing");
+  const cve = cves[0] || null;
+
+  if (cve) {
+    console.warn(`📌 Related CVE found: ${cve.id} `);
+    console.warn(`📌 Associated CWE: ${cve.cwe}`);
+  }
+
+  return res.status(403).json({
+    message: "Country mismatch",
+    ...(cve && { cve })
+  });     
     }
 
-    // ✅ Enforce fingerprint match
-    if (!storedFingerprint || storedFingerprint !== fingerprint) {
-      console.warn("❌ Fingerprint mismatch");
-      return res.status(403).json({ message: "Device fingerprint mismatch" });
-    }
 
+
+if (!storedFingerprint || storedFingerprint !== fingerprint) {
+  console.warn("❌ Fingerprint mismatch");
+
+  const cves = await fetchCVE("browser fingerprint");
+  const cve = cves[0] || null;
+
+  if (cve) {
+    console.warn(`📌 Related CVE found: ${cve.id} `);
+    console.warn(`📌 Associated CWE: ${cve.cwe}`);
+  }
+
+  return res.status(403).json({
+    message: "Device fingerprint mismatch",
+    ...(cve && { cve })
+  });
+}
     // ⚠️ Optional timezone warning
     const normalizeTz = (tz) =>
       tz?.toLowerCase().replace("calcutta", "kolkata");
@@ -102,28 +120,60 @@ export default async function checkSessionContext(req, res, next) {
         storedMeta.timezone,
         clientTimezone
       );
+      const cves = await fetchCVE("time zone vulnerability");
+      const cve = cves[0] || null;
+      if (cve) {
+      console.warn(`📌 Related CVE found: ${cve.id}`);
+      console.warn(`📌 Associated CWE: ${cve.cwe}`);
+       }
+       return res.status(403).json({
+        message: "Timezone mismatch",
+           ...(cve && { cve })
+       });
     }
 
     // ⚠️ Optional warnings
     if (storedMeta.asn !== currentMeta.asn) {
       console.warn("⚠️ ASN mismatch:", storedMeta.asn, currentMeta.asn);
+      const cves = await fetchCVE("Authentication Bypass Using an Alternate Path or Channel");
+      const cve = cves[0] || null;
+      if (cve) {
+      console.warn(`📌 Related CVE found: ${cve.id}`);
+      console.warn(`📌 Associated CWE: ${cve.cwe}`);
+       }
+       return res.status(403).json({
+        message: "ASN mismatch",
+           ...(cve && { cve })
+       });
     }
 
     if (context.origin && context.origin !== origin) {
       console.warn("⚠️ Origin mismatch:", context.origin, origin);
+      const cves = await fetchCVE("origin validation");
+      const cve = cves[2] || null;
+      if (cve) {
+      console.warn(`📌 Related CVE found: ${cve.id}`);
+      console.warn(`📌 Associated CWE: ${cve.cwe}`);
+       }
+       return res.status(403).json({
+        message: "Origin mismatch",
+           ...(cve && { cve })
+       });
     }
 
     if (context.userAgent && context.userAgent !== userAgent) {
       console.warn("⚠️ User-Agent mismatch:", context.userAgent, userAgent);
+      const cves = await fetchCVE("session hijacking user agent");
+      const cve = cves[0] || null;
+      if (cve) {
+      console.warn(`📌 Related CVE found: ${cve.id}`);
+      console.warn(`📌 Associated CWE: ${cve.cwe}`);
+       }
+       return res.status(403).json({
+        message: "User-Agent Mismatch",
+           ...(cve && { cve })
+       });     
     }
-
-    const contextVerifyTime = Date.now() - startTime;
-
-    fs.appendFileSync(
-      logFile,
-      `${Date.now()},,,,${contextVerifyTime}\n`, // Only fills contextVerify column
-      'utf-8'
-    );
 
     next();
   } catch (err) {

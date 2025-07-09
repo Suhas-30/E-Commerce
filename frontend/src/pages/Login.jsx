@@ -9,12 +9,16 @@ const Login = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    deviceFingerprint: "",
+    deviceFingerprintParam: "",
     publicIP: "",
-    timezone: ""
+    timezone: "",
   });
 
-  const [ready, setReady] = useState(false); // ✅ block form until fingerprint/IP fetched
+  const [encryptionKeyObj, setEncryptionKeyObj] = useState(null); // will store { key, iv }
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,12 +29,12 @@ const Login = () => {
 
       setFormData((prev) => ({
         ...prev,
-        deviceFingerprint: fingerprint,
+        deviceFingerprintParam: fingerprint,
         publicIP: ip,
         timezone,
       }));
 
-      setReady(true); // ✅ allow login
+      setReady(true);
     };
 
     init();
@@ -43,18 +47,39 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    console.log("🚀 Login payload:", formData); // ✅ debug what gets sent
+    setLoading(true);
 
     try {
       const res = await axios.post(`${base_api_url}/auth/login`, formData);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
-      alert("✅ Login successful!");
-      navigate("/");
+
+      if (res.data.symmetricKey) {
+        setEncryptionKeyObj(res.data.symmetricKey); // object with { key, iv }
+      }
+
+      setLoginSuccess(true);
     } catch (err) {
       console.error("Login Failed:", err.response?.data || err.message);
       alert("❌ Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!encryptionKeyObj) {
+      alert("No key to copy.");
+      return;
+    }
+
+    try {
+      const keyString = JSON.stringify(encryptionKeyObj); // make it copyable
+      await navigator.clipboard.writeText(keyString);
+      alert("🔑 Symmetric key copied to clipboard!");
+    } catch (err) {
+      console.error("Copy failed:", err);
+      alert("❌ Failed to copy key");
     }
   };
 
@@ -64,50 +89,81 @@ const Login = () => {
         <h2 className="text-2xl font-bold mb-6 text-center text-blue-600">
           Login to Your Account
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Email Address
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full px-4 py-2 border rounded-lg shadow-sm"
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full px-4 py-2 border rounded-lg shadow-sm"
-            />
-          </div>
+        {!loginSuccess ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full px-4 py-2 border rounded-lg shadow-sm"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={!ready}
-            className={`w-full py-2 rounded-lg font-semibold transition ${
-              ready
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            {ready ? "Login" : "Loading..."}
-          </button>
-        </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full px-4 py-2 border rounded-lg shadow-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!ready || loading}
+              className={`w-full py-2 rounded-lg font-semibold transition ${
+                ready && !loading
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {loading ? "🔄 Logging in..." : ready ? "Login" : "Loading..."}
+            </button>
+          </form>
+        ) : (
+          <div className="mt-6 text-center">
+            <h3 className="text-lg font-semibold text-green-600 mb-4">
+              ✅ Login Successful
+            </h3>
+            <p className="text-sm mb-2 text-gray-700">
+              Click below to copy your symmetric key securely.
+            </p>
+
+            <button
+              onClick={handleCopy}
+              className="w-full py-2 rounded bg-blue-600 text-white font-medium hover:bg-blue-700"
+            >
+              📋 Copy Symmetric Key
+            </button>
+
+            <p className="text-xs text-gray-500 mt-2">
+              Store it safely. It won't be shown again.
+            </p>
+
+            <button
+              onClick={() => navigate("/")}
+              className="mt-4 text-sm text-blue-600 underline"
+            >
+              Continue to App →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default Login;
+

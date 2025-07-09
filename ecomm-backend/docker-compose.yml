@@ -26,9 +26,6 @@ services:
     container_name: auth-service
     ports:
       - "3001:3001"
-    depends_on:
-      - mongo
-      - redis
     networks:
       - mern-net
     volumes:
@@ -40,8 +37,6 @@ services:
     container_name: product-service
     ports:
       - "3002:3002"
-    depends_on:
-      - mongo
     networks:
       - mern-net
 
@@ -50,16 +45,25 @@ services:
     container_name: order-service
     ports:
       - "3003:3003"
-    depends_on:
-      - mongo
-      - auth-service
-      - product-service
-      - redis
     networks:
       - mern-net
     volumes:
       - ./shared-utils:/app/shared-utils
       - ./order-service/logs:/app/logs
+
+  scone:
+    build: ./scone
+    image: registry.scontain.com/scone/apps/node:18
+    container_name: scone
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./scone/enclave_config.yaml:/etc/sgx/enclave_config.yaml
+      - ./shared-utils:/app/shared-utils
+    environment:
+      - SCONE_MODE=sim
+    networks:
+      - mern-net
 
   api-gateway:
     image: nginx
@@ -68,10 +72,6 @@ services:
       - "80:80"
     volumes:
       - ./api-gateway/default.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - auth-service
-      - product-service
-      - order-service
     networks:
       - mern-net
 
@@ -88,9 +88,6 @@ services:
     container_name: ml-filter-gateway
     ports:
       - "3100:3100"
-    depends_on:
-      - ml-service
-      - api-gateway
     networks:
       - mern-net
 

@@ -2,17 +2,10 @@ import express from "express";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import User from "./models/User.js";
-import path from "path";
-import fs from 'fs';
-
-const logFile = path.join(process.cwd(), 'logs', 'latency-metrics.csv');
-
-
-import {
-  storeDeviceFingerprintInfo,
-  storeUserContext,
-} from "./shared-utils/redisService.js";
+import generateKey from "./models/generateKey.js";
+import axios from "axios";
 import { getIPMetadata } from "./shared-utils/ipUtils.js";
+import { generateDeviceFingerprint } from "./shared-utils/generateFingerprint.js";
 
 const app = express();
 app.use(express.json());
@@ -46,97 +39,101 @@ app.post("/register", async (req, res) => {
   }
 });
 
+//Login route
 app.post("/login", async (req, res) => {
   try {
     const {
       email,
       password,
-      deviceFingerprint,
+      deviceFingerprintParam,
       publicIP: clientReportedIP,
       timezone,
     } = req.body;
 
-    const jwtStart = Date.now();
-
+    // Validating
     const user = await User.findOne({ email, password });
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
+    // Device Fingerprint
+    // const deviceFingerprint = generateDeviceFingerprint(deviceFingerprintParam);
+    // console.log("Device fingerprint:", deviceFingerprint);
+    //token creation JWT
     const token = jwt.sign({ userId: user._id, email }, JWT_SECRET, {
       expiresIn: "1h",
-    });
+    });    
+    
+    const symmetricKey = generateKey();
+    console.log("Sym: ", symmetricKey);
 
-    const jwtSignTime = Date.now()-jwtStart;
-
-    const forwardedFor = req.headers["x-forwarded-for"];
-    const proxyIP = forwardedFor?.split(",")[0]?.trim() || null;
-    const privateIP = req.socket.remoteAddress;
 
     console.log("🧾 Public IP from client:", clientReportedIP);
-    console.log("🧾 IP from proxy headers:", proxyIP);
 
-    const isPrivate = (ip) => {
-      if (!ip) return true;
-      if (ip === "127.0.0.1") return true;
-      if (ip.startsWith("172.19.") || ip.startsWith("172.18.")) return false; // Accept WSL Docker dev
-      return /^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip);
-    };
-
-    if (!clientReportedIP || isPrivate(proxyIP)) {
-      console.warn("⚠️ Invalid or private IP detected:", proxyIP);
-      return res.status(400).json({ message: "Public IP missing or invalid." });
-    }
-
+    // session Context Creation
     const userAgent = req.headers["user-agent"] || "";
     const origin = req.headers["origin"] || req.headers["referer"] || "";
     const ipMetaData = await getIPMetadata(clientReportedIP);
+    const privateIP =
+      req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
 
-    const contextStart = Date.now();
-
-    const sessionContext = {
-      userId: user._id.toString(),
-      deviceFingerprint,
+    const ipContext = {
       privateIP,
       publicIP: clientReportedIP,
       timezone,
       ip_meta: ipMetaData,
-      userAgent,
-      origin,
-      ip_history: [
-        {
-          ip: clientReportedIP,
-          meta: ipMetaData,
-          timestamp: new Date().toISOString(),
-        },
-      ],
+      origin
     };
 
-    await storeUserContext(user._id.toString(), sessionContext);
+    //sending session context to scone
+    try {
+      const sconeResponse = await axios.post("http://scone:5000/store", {
+        userId: user._id.toString(),
+        symmetricKey,
+        deviceFingerprintParam,
+        ipContext
+      });
 
-    await storeDeviceFingerprintInfo({
-      userId: user._id.toString(),
-      token,
-      deviceFingerprint,
-    });
+      console.log("SCONE response status:", sconeResponse.status);
+      console.log("SCONE response data:", sconeResponse.data);
+    } catch (err) {
+      console.error("Error sending session context to SCONE:", err.message);
+    }
 
-    const contextStoreTime = Date.now()-contextStart;
+    //sending respone to clinet with JWT token, private Key for session
 
-    fs.appendFileSync(logFile, `${Date.now()}, ${jwtSignTime}, ${contextStoreTime},,\n`,
-      'utf-8'
-    )
+
 
     res.json({
       message: "Login successful",
       token,
       user: { name: user.name, email: user.email },
+      symmetricKey
     });
+
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Login failed" });
   }
 });
 
-
-
 app.listen(3001, () => {
   console.log("🔐 Auth service running on port 3001");
 });
+
+
+/*
+
+ip_history: [
+        {
+          ip: clientReportedIP,
+          meta: ipMetaData,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+
+
+{"key":"qRyi2sFG1LPOZXUg2kAdQ0Bp5qmArrLWLhsHA9ZQanw=","iv":"TxVPCVQNnwrZfnECNmocSg=="}
+
+
+
+
+      */

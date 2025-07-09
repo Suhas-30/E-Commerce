@@ -7,6 +7,7 @@ import authenticate from "./middleware/authMiddleware.js";
 import checkFingerprint from "./shared-utils/checkFingerprint.js";
 import checkSessionContext from "./shared-utils/checkSessionContext.js";
 
+
 const app = express();
 app.use(express.json());
 app.set("trust proxy", true);

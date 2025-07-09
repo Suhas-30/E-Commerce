@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import Profile from "./Profile";
 import base_api_url from "../baseapi/baseAPI";
 import { generateDeviceFingerprint } from "../components/fingerPrint";
 import { getPublicIP } from "../components/getPublicIP";
+import { encryptFingerprint } from "../components/signPayload.js";
 import { Search } from "lucide-react";
 import axiosConfig from "../components/axiosConfig";
+import Profile from "./Profile";
 
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadingProductId, setLoadingProductId] = useState(null);
+
   const navigate = useNavigate();
   const isLoggedIn = !!localStorage.getItem("token");
 
@@ -29,20 +32,59 @@ const Home = () => {
       return;
     }
 
+    setLoadingProductId(product._id);
+
     try {
       const [fingerprint, publicIP] = await Promise.all([
         generateDeviceFingerprint(),
-        getPublicIP()
+        getPublicIP(),
       ]);
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      // 🔐 Load symmetric key from sessionStorage or prompt
+      let keyObj;
+      const cachedKey = sessionStorage.getItem("symmetricKey");
+
+      if (cachedKey) {
+        try {
+          keyObj = JSON.parse(cachedKey);
+        } catch (err) {
+          console.warn("⚠️ Invalid symmetric key in sessionStorage. Clearing...");
+          sessionStorage.removeItem("symmetricKey");
+        }
+      }
+
+      if (!keyObj) {
+        const keyInput = prompt("🔐 Paste your symmetric key (JSON with 'key' and 'iv'):");
+        if (!keyInput) {
+          alert("❌ Symmetric key is required.");
+          return;
+        }
+
+        try {
+          const cleaned = keyInput.trim().replace(/^"|"$/g, "").replace(/\\"/g, '"');
+          keyObj = JSON.parse(cleaned);
+          if (!keyObj.key || !keyObj.iv) {
+            alert("❌ Key or IV missing in the input.");
+            return;
+          }
+          sessionStorage.setItem("symmetricKey", JSON.stringify(keyObj));
+        } catch (err) {
+          alert("❌ Invalid JSON format for symmetric key.");
+          console.error("Key parsing error:", err);
+          return;
+        }
+      }
+
+      const encryptedFingerprint = await encryptFingerprint(fingerprint, keyObj);
 
       await axiosConfig.post(
         `/order/cart`,
         {
           productId: product._id,
-          deviceFingerprint: fingerprint,
           publicIP,
-          timezone
+          timezone,
+          encryptedFingerprint,
         },
         {
           headers: {
@@ -54,7 +96,10 @@ const Home = () => {
 
       alert(`✅ ${product.name} added to cart!`);
     } catch (error) {
-      console.error("❌ Failed to add product to cart:", error);
+      const msg = error.response?.data?.message || error.message;
+      alert("❌ Failed to add product to cart.\n" + msg);
+    } finally {
+      setLoadingProductId(null);
     }
   };
 
@@ -71,9 +116,7 @@ const Home = () => {
   return (
     <div className="bg-white min-h-screen px-4 py-6">
       <header className="flex justify-between items-center max-w-7xl mx-auto mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
-          🛒 Ecomm
-        </h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">🛒 Ecomm</h1>
         <div className="flex items-center space-x-3">
           {isLoggedIn ? (
             <Profile />
@@ -115,7 +158,7 @@ const Home = () => {
         </h2>
 
         {filteredProducts.length === 0 ? (
-          <p className="text-center text-gray-500">No products found for your search.</p>
+          <p className="text-center text-gray-500">No products found.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 px-2 sm:px-0">
             {filteredProducts.map((product) => (
@@ -142,9 +185,16 @@ const Home = () => {
                     </span>
                     <button
                       onClick={() => handleAddToCart(product)}
-                      className="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition"
+                      disabled={loadingProductId === product._id}
+                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
+                        loadingProductId === product._id
+                          ? "bg-gray-400 cursor-not-allowed text-white"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                      }`}
                     >
-                      Add to Cart
+                      {loadingProductId === product._id
+                        ? "Adding..."
+                        : "Add to Cart"}
                     </button>
                   </div>
                 </div>

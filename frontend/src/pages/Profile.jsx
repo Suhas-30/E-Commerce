@@ -6,7 +6,17 @@ const Profile = () => {
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  const user = JSON.parse(localStorage.getItem('user'));
+  // ✅ Safe parsing of user object
+  let user = null;
+  const userStr = localStorage.getItem('user');
+
+  try {
+    user = userStr ? JSON.parse(userStr) : null;
+  } catch (err) {
+    console.error("❌ Failed to parse user from localStorage:", err);
+    user = null;
+  }
+
   const userName = user?.name || 'Guest';
   const email = user?.email || 'user@example.com';
   const initials = userName.charAt(0).toUpperCase();

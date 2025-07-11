@@ -4,6 +4,7 @@ import axios from "axios";
 import base_api_url from "../baseapi/baseAPI";
 import { generateDeviceFingerprint } from "../components/fingerPrint";
 import { getPublicIP } from "../components/getPublicIP";
+import { encryptFingerprint } from "../components/signPayload.js";
 
 const Buy = () => {
   const location = useLocation();
@@ -31,12 +32,49 @@ const Buy = () => {
     try {
       const token = localStorage.getItem("token");
 
+      // 🔐 Load symmetric key from sessionStorage or prompt
+      let keyObj;
+      const cachedKey = sessionStorage.getItem("symmetricKey");
+
+      if (cachedKey) {
+        try {
+          keyObj = JSON.parse(cachedKey);
+        } catch (err) {
+          console.warn("⚠️ Invalid symmetric key in sessionStorage. Clearing...");
+          sessionStorage.removeItem("symmetricKey");
+        }
+      }
+
+      if (!keyObj) {
+        const keyInput = prompt("🔐 Paste your symmetric key (JSON with 'key' and 'iv'):");
+        if (!keyInput) {
+          alert("❌ Symmetric key is required.");
+          return;
+        }
+
+        try {
+          const cleaned = keyInput.trim().replace(/^"|"$/g, "").replace(/\\"/g, '"');
+          keyObj = JSON.parse(cleaned);
+          if (!keyObj.key || !keyObj.iv) {
+            alert("❌ Key or IV missing in the input.");
+            return;
+          }
+          sessionStorage.setItem("symmetricKey", JSON.stringify(keyObj));
+        } catch (err) {
+          alert("❌ Invalid JSON format for symmetric key.");
+          console.error("Key parsing error:", err);
+          return;
+        }
+      }
+
+      const encryptedFingerprint = await encryptFingerprint(deviceFingerprint, keyObj);
+
       const response = await axios.post(
         `${base_api_url}/order/place`,
         {
           items,
           totalAmount,
-          deviceFingerprint,
+          encryptedFingerprint,
           publicIP,
           timezone,
         },
@@ -52,8 +90,9 @@ const Buy = () => {
       console.log("Order response:", response.data);
       navigate("/");
     } catch (err) {
-      console.error("❌ Error placing order:", err.response?.data || err.message);
-      alert("Failed to place order.");
+      const msg = err.response?.data?.message || err.message;
+      console.error("❌ Error placing order:", msg);
+      alert("❌ Failed to place order.\n" + msg);
     }
   };
 

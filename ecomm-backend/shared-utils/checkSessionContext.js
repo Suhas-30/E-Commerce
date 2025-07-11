@@ -64,7 +64,7 @@ export default async function checkSessionContext(req, res, next) {
       });
     }
 
-    // ⚠️ Only warn on ASN mismatch
+
     if (storedMeta.asn !== currentMeta.asn) {
       console.warn("⚠️ ASN mismatch:", storedMeta.asn, currentMeta.asn);
       const cves = await fetchCVE("Authentication Bypass Using an Alternate Path or Channel");
@@ -73,8 +73,6 @@ export default async function checkSessionContext(req, res, next) {
         console.warn(`📌 Related CVE: ${cve.id} | CWE: ${cve.cwe}`);
       }
     }
-
-    // ⚠️ Only warn on public IP mismatch
     if (storedIP && storedIP !== publicIP) {
       console.warn("⚠️ Public IP mismatch:", storedIP, publicIP);
       const cves = await fetchCVE("ip spoofing");

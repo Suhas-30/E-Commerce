@@ -3,7 +3,7 @@ import {
   storeUserContext,
   getUserSession,
 } from "./shared-utils/redisService.js";
-import {generateDeviceFingerprint} from "./shared-utils/generateFingerprint.js";
+import { generateDeviceFingerprint } from "./shared-utils/generateFingerprint.js";
 
 const app = express();
 app.use(express.json());
@@ -18,7 +18,13 @@ app.post("/store", async (req, res) => {
       req.body;
 
     const keys = Object.keys(deviceFingerprintParam);
-    const selectedKeys = keys.sort(() => 0.5 - Math.random()).slice(0, 4);
+
+    for (let i = keys.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [keys[i], keys[j]] = [keys[j], keys[i]];
+    }
+
+    const selectedKeys = keys.slice(0, 4); // Pick first 4 shuffled keys
     const selectedParams = {};
 
     for (const key of selectedKeys) {
@@ -36,7 +42,7 @@ app.post("/store", async (req, res) => {
 
     await storeUserContext(userId, storing);
 
-    console.log('Stored context:', storing);
+    console.log("Stored context:", storing);
 
     return res
       .status(200)

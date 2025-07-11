@@ -38,12 +38,23 @@ def predict(text: str):
     label = "malicious" if predicted_class == 1 else "benign"
     return {"prediction": label, "confidence": round(confidence, 4)}
 
+
 @app.post("/predict")
 async def classify(request: Request):
     try:
         body = await request.json()
+
+        print("📝 Received Full Payload:", json.dumps(body))
+
+        # Handle nested 'payload' object
+        if "payload" in body and isinstance(body["payload"], dict):
+            if "encryptedFingerprint" in body["payload"]:
+                print("✂️ Trimming 'encryptedFingerprint' from nested payload before ML prediction.")
+                body["payload"].pop("encryptedFingerprint")
+
+        # Convert sanitized body to string
         raw_text = json.dumps(body)
-        print("📝 Received Payload:", raw_text)
+        print("📦 Payload Sent to Model:", raw_text)
 
         result = predict(raw_text)
         print(f"🔍 Prediction => Label: {result['prediction']} | Confidence: {result['confidence']}")
